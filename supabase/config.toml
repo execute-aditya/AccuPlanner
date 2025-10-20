@@ -1,0 +1,13 @@
+project_id = "qjlqgglpmpkrhpobiscb"
+
+[functions.generate-study-plan]
+verify_jwt = false
+
+[functions.create-goal]
+verify_jwt = true
+
+[functions.update-goal-progress]
+verify_jwt = true
+
+[functions.get-goals]
+verify_jwt = true
