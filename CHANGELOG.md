@@ -2,8 +2,15 @@
 
 All notable changes to AccuPlanner will be documented in this file.
 
-## [Version 2.0.0] - 2025-01-21
+## [Version 2.1.0] - 2025-10-21
 
+### Fixes & Improvements
+- Validates YouTube references via oEmbed; dead/private/removed videos are filtered out server-side before returning the plan.
+- Edge function now returns validated JSON (non-streaming) to ensure link checks; frontend updated to support both streaming and non‑streaming responses.
+- No other features changed; only reference reliability was addressed.
+
+## [Version 2.0.0] - 2025-01-21
+ 
 ### 🎯 Major Features
 
 #### AI-Powered Learning Path Generation

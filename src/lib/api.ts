@@ -37,7 +37,7 @@ export const generateStudyPlan = async (
     body: JSON.stringify({ goalTitle, goalDescription }),
   });
 
-  if (!response.ok || !response.body) {
+  if (!response.ok) {
     if (response.status === 429) {
       throw new Error('Rate limit exceeded. Please try again in a moment.');
     }
@@ -47,55 +47,63 @@ export const generateStudyPlan = async (
     throw new Error('Failed to generate study plan');
   }
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let textBuffer = '';
-  let completeText = '';
+  const contentType = response.headers.get('content-type') || '';
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  // If backend streams tokens (SSE)
+  if (contentType.includes('text/event-stream')) {
+    if (!response.body) throw new Error('Stream not available');
 
-    textBuffer += decoder.decode(value, { stream: true });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = '';
+    let completeText = '';
 
-    let newlineIndex: number;
-    while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
-      let line = textBuffer.slice(0, newlineIndex);
-      textBuffer = textBuffer.slice(newlineIndex + 1);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-      if (line.endsWith('\r')) line = line.slice(0, -1);
-      if (line.startsWith(':') || line.trim() === '') continue;
-      if (!line.startsWith('data: ')) continue;
+      textBuffer += decoder.decode(value, { stream: true });
 
-      const jsonStr = line.slice(6).trim();
-      if (jsonStr === '[DONE]') break;
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
 
-      try {
-        const parsed = JSON.parse(jsonStr);
-        const content = parsed.choices?.[0]?.delta?.content as string | undefined;
-        if (content) {
-          completeText += content;
-          onChunk(content);
+        if (line.endsWith('\r')) line = line.slice(0, -1);
+        if (line.startsWith(':') || line.trim() === '') continue;
+        if (!line.startsWith('data: ')) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === '[DONE]') break;
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            completeText += content;
+            onChunk(content);
+          }
+        } catch (e) {
+          // Partial JSON, put it back
+          textBuffer = line + '\n' + textBuffer;
+          break;
         }
-      } catch (e) {
-        // Partial JSON, put it back
-        textBuffer = line + '\n' + textBuffer;
-        break;
       }
+    }
+
+    try {
+      const jsonMatch = completeText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || completeText.match(/\{[\s\S]*\}/);
+      const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : completeText;
+      return JSON.parse(jsonStr.trim());
+    } catch (e) {
+      console.error('Failed to parse study plan:', e);
+      throw new Error('Failed to parse study plan response');
     }
   }
 
-  // Parse the complete JSON response
-  try {
-    // Extract JSON from markdown code blocks if present
-    const jsonMatch = completeText.match(/```(?:json)?\s*([\s\S]*?)\s*```/) || 
-                     completeText.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : completeText;
-    return JSON.parse(jsonStr.trim());
-  } catch (e) {
-    console.error('Failed to parse study plan:', e);
-    throw new Error('Failed to parse study plan response');
-  }
+  // Non-streaming JSON response (validated on backend)
+  const data = await response.json();
+  return data as StudyPlan;
 };
 
 export const createGoal = async (
