@@ -23,6 +23,8 @@ serve(async (req) => {
 Your response must be a valid JSON object with this exact structure:
 {
   "title": "Concise Learning Path Title (max 6 words)",
+  "category": "Category of the learning goal (e.g., Programming, Language, Data Science, Business, Design, etc.)",
+  "difficulty": 1-3 (1=Beginner, 2=Intermediate, 3=Advanced),
   "summary": "Brief 2-3 sentence overview",
   "steps": [
     {
@@ -45,11 +47,15 @@ Your response must be a valid JSON object with this exact structure:
 
 Guidelines:
 - Generate a SHORT, concise title (max 6 words) that captures the essence of the learning goal
+- Determine the appropriate category based on the goal (e.g., "Programming" for Java, "Language" for Japanese, "AI/ML" for machine learning)
+- Assess the difficulty level: 1 for beginners, 2 for intermediate learners, 3 for advanced topics
 - Create 5-8 progressive steps that build on each other
 - Include 3-5 resources per step
-- Prioritize FREE YouTube videos as primary resources (use type: "video")
+- CRITICAL: Prioritize FREE YouTube videos as primary resources (use type: "video")
+- CRITICAL: Only provide VERIFIED YouTube links from popular, reputable channels (e.g., freeCodeCamp, Traversy Media, Fireship, 3Blue1Brown, etc.)
+- Prefer well-known educational channels with high view counts to ensure videos are not deleted
 - For paid resources (courses, books), set isPaid: true
-- Mix free and paid resources, but prioritize free ones
+- Mix free and paid resources, but prioritize free ones first
 - Use real, high-quality resource URLs (actual YouTube videos, articles, etc.)
 - Provide realistic time estimates
 - Resources should have diverse types: video (YouTube), article, course, book, exercise`;

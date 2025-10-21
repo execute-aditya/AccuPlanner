@@ -44,7 +44,12 @@ export default function Onboarding() {
         setStreamedText(prev => prev + chunk);
       });
 
-      await createGoal(goalTitle, goalDescription, 'General', 1, studyPlan);
+      // Use AI-generated title, category, and difficulty from the study plan
+      const title = studyPlan.title || goalTitle;
+      const category = studyPlan.category || 'General';
+      const difficulty = studyPlan.difficulty || 1;
+
+      await createGoal(title, goalDescription, category, difficulty, studyPlan);
       
       toast({
         title: "Success!",

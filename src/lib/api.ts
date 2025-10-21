@@ -16,6 +16,8 @@ export interface StudyPlanStep {
 
 export interface StudyPlan {
   title: string;
+  category?: string;
+  difficulty?: number;
   summary: string;
   steps: StudyPlanStep[];
 }
