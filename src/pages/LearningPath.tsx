@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, CheckCircle2, Circle, Clock, BookOpen, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, CheckCircle2, Circle, Clock, BookOpen, Loader2, ExternalLink, DollarSign } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { updateLessonProgress } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +16,7 @@ export default function LearningPath() {
   const { toast } = useToast();
   const [goal, setGoal] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedLesson, setSelectedLesson] = useState<any>(null);
 
   useEffect(() => {
     loadGoal();
@@ -79,8 +81,11 @@ export default function LearningPath() {
     );
   }
 
-  const lessons = goal.lessons || [];
+  const lessons = goal.lessons ? [...goal.lessons].sort((a: any, b: any) => a.order_index - b.order_index) : [];
   const completedLessons = lessons.filter((l: any) => l.completed).length;
+
+  const freeResources = selectedLesson?.resources?.filter((r: any) => !r.isPaid) || [];
+  const paidResources = selectedLesson?.resources?.filter((r: any) => r.isPaid) || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -119,8 +124,12 @@ export default function LearningPath() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h2 className="text-2xl font-bold text-gray-900 mb-6">Learning Path</h2>
         <div className="space-y-4">
-          {lessons.map((lesson: any, index: number) => (
-            <Card key={lesson.id} className="hover:shadow-lg transition-shadow">
+          {lessons.map((lesson: any) => (
+            <Card 
+              key={lesson.id} 
+              className="hover:shadow-lg transition-shadow cursor-pointer"
+              onClick={() => setSelectedLesson(lesson)}
+            >
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -131,14 +140,17 @@ export default function LearningPath() {
                         <Circle className="w-6 h-6 text-gray-400" />
                       )}
                       <CardTitle className="text-xl">
-                        Step {index + 1}: {lesson.title}
+                        Step {lesson.order_index + 1}: {lesson.title}
                       </CardTitle>
                     </div>
                     <CardDescription className="ml-9">{lesson.description}</CardDescription>
                   </div>
                   <Button
                     size="sm"
-                    onClick={() => handleLessonToggle(lesson.id, !lesson.completed)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleLessonToggle(lesson.id, !lesson.completed);
+                    }}
                     variant={lesson.completed ? "outline" : "default"}
                   >
                     {lesson.completed ? 'Mark Incomplete' : 'Mark Complete'}
@@ -146,36 +158,138 @@ export default function LearningPath() {
                 </div>
               </CardHeader>
               <CardContent className="ml-9">
-                <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                  <Clock className="w-4 h-4" />
-                  <span>{lesson.duration_minutes} minutes</span>
-                </div>
-                {lesson.resources && lesson.resources.length > 0 && (
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Resources:</h4>
-                    <div className="space-y-2">
-                      {lesson.resources.map((resource: any, idx: number) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-indigo-600" />
-                          <a
-                            href={resource.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-indigo-600 hover:text-indigo-700 text-sm"
-                          >
-                            {resource.title}
-                          </a>
-                          <Badge variant="outline" className="text-xs">{resource.type}</Badge>
-                        </div>
-                      ))}
-                    </div>
+                <div className="flex items-center gap-4 text-sm text-gray-600">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4" />
+                    <span>{lesson.duration_minutes} minutes</span>
                   </div>
-                )}
+                  {lesson.resources && lesson.resources.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4" />
+                      <span>{lesson.resources.length} resources</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
       </div>
+
+      <Dialog open={!!selectedLesson} onOpenChange={(open) => !open && setSelectedLesson(null)}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {selectedLesson?.completed ? (
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-400" />
+              )}
+              Step {selectedLesson?.order_index + 1}: {selectedLesson?.title}
+            </DialogTitle>
+            <DialogDescription className="text-base mt-4">
+              {selectedLesson?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            <div className="flex items-center gap-4 text-sm text-gray-600 border-t border-b py-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                <span>{selectedLesson?.duration_minutes} minutes</span>
+              </div>
+            </div>
+
+            {freeResources.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Free Resources</h3>
+                <div className="space-y-3">
+                  {freeResources.map((resource: any, idx: number) => (
+                    <a
+                      key={idx}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-colors group"
+                    >
+                      <BookOpen className="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 group-hover:text-indigo-700 mb-1">
+                          {resource.title}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {resource.type}
+                          </Badge>
+                          {resource.source && (
+                            <span className="text-xs text-gray-500">{resource.source}</span>
+                          )}
+                        </div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-400 group-hover:text-indigo-600 flex-shrink-0 mt-1" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {paidResources.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <DollarSign className="w-5 h-5" />
+                  Paid Resources
+                </h3>
+                <div className="space-y-3">
+                  {paidResources.map((resource: any, idx: number) => (
+                    <a
+                      key={idx}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-start gap-3 p-3 rounded-lg border border-amber-200 bg-amber-50 hover:border-amber-300 hover:bg-amber-100 transition-colors group"
+                    >
+                      <BookOpen className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-gray-900 group-hover:text-amber-700 mb-1">
+                          {resource.title}
+                        </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs bg-white">
+                            {resource.type}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs bg-amber-100 border-amber-300">
+                            Paid
+                          </Badge>
+                          {resource.source && (
+                            <span className="text-xs text-gray-600">{resource.source}</span>
+                          )}
+                        </div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-amber-600 group-hover:text-amber-700 flex-shrink-0 mt-1" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                onClick={() => {
+                  handleLessonToggle(selectedLesson.id, !selectedLesson.completed);
+                  setSelectedLesson(null);
+                }}
+                className="flex-1"
+                variant={selectedLesson?.completed ? "outline" : "default"}
+              >
+                {selectedLesson?.completed ? 'Mark Incomplete' : 'Mark Complete'}
+              </Button>
+              <Button onClick={() => setSelectedLesson(null)} variant="outline">
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

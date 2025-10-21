@@ -22,7 +22,7 @@ serve(async (req) => {
 
 Your response must be a valid JSON object with this exact structure:
 {
-  "title": "Learning Goal Title",
+  "title": "Concise Learning Path Title (max 6 words)",
   "summary": "Brief 2-3 sentence overview",
   "steps": [
     {
@@ -32,10 +32,11 @@ Your response must be a valid JSON object with this exact structure:
       "durationMinutes": 60,
       "resources": [
         {
-          "type": "article|video|course|book|website|exercise",
+          "type": "video|article|course|book|exercise",
           "title": "Resource Title",
           "url": "https://example.com",
-          "source": "Source Name"
+          "source": "Source Name",
+          "isPaid": false
         }
       ]
     }
@@ -43,12 +44,15 @@ Your response must be a valid JSON object with this exact structure:
 }
 
 Guidelines:
-- Create 5-8 progressive steps
-- Each step should build on previous ones
-- Include diverse resource types
+- Generate a SHORT, concise title (max 6 words) that captures the essence of the learning goal
+- Create 5-8 progressive steps that build on each other
+- Include 3-5 resources per step
+- Prioritize FREE YouTube videos as primary resources (use type: "video")
+- For paid resources (courses, books), set isPaid: true
+- Mix free and paid resources, but prioritize free ones
+- Use real, high-quality resource URLs (actual YouTube videos, articles, etc.)
 - Provide realistic time estimates
-- Include 2-4 resources per step
-- Use real, high-quality resource URLs when possible`;
+- Resources should have diverse types: video (YouTube), article, course, book, exercise`;
 
     const userPrompt = `Goal: ${goalTitle}${goalDescription ? `\n\nAdditional Context: ${goalDescription}` : ''}
 

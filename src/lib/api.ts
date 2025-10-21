@@ -10,6 +10,7 @@ export interface StudyPlanStep {
     title: string;
     url?: string;
     source?: string;
+    isPaid?: boolean;
   }>;
 }
 
