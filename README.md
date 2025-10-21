@@ -1,73 +1,210 @@
-# Welcome to your Lovable project
+# AccuPlanner
 
-## Project info
+AccuPlanner is an AI-powered learning path generator that helps users create personalized study plans with curated resources. Built with React, TypeScript, Supabase, and Google Gemini AI.
 
-**URL**: https://lovable.dev/projects/484c5b34-c359-4e9e-9984-3ccf064d6225
+## ✨ Features
 
-## How can I edit this code?
+- 🤖 **AI-Powered Learning Paths**: Generate comprehensive study plans using Google Gemini API
+- 📚 **Curated Resources**: Verified YouTube videos, articles, courses, and exercises
+- 📊 **Progress Tracking**: Track your learning progress across multiple goals
+- 🎯 **Smart Categorization**: Automatic category assignment and difficulty assessment
+- 🔐 **Secure Authentication**: User authentication powered by Supabase
+- 💾 **Persistent Storage**: Save and manage multiple learning goals
 
-There are several ways of editing your application.
+## 🚀 Getting Started
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/484c5b34-c359-4e9e-9984-3ccf064d6225) and start prompting.
+- Node.js & npm - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- Supabase CLI - [installation guide](https://supabase.com/docs/guides/cli)
+- Google Gemini API Key - [get it here](https://aistudio.google.com/app/apikey)
 
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Step 1: Clone the repository
+git clone https://github.com/Siddhesh-00/AccuPlanner.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Step 2: Navigate to the project directory
+cd AccuPlanner
 
-# Step 3: Install the necessary dependencies.
-npm i
+# Step 3: Install dependencies
+npm install
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Set up environment variables
+# Create a .env file in the root directory with:
+# VITE_SUPABASE_URL=your_supabase_url
+# VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Step 5: Link to your Supabase project
+npx supabase link --project-ref your_project_ref
+
+# Step 6: Set up Gemini API key as Supabase secret
+npx supabase secrets set GEMINI_API_KEY=your_google_gemini_api_key
+
+# Step 7: Deploy Supabase Edge Functions
+npx supabase functions deploy generate-study-plan-v2
+npx supabase functions deploy create-goal
+npx supabase functions deploy get-goals
+npx supabase functions deploy update-goal-progress
+
+# Step 8: Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080` (or the next available port).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🔑 API Configuration
 
-**Use GitHub Codespaces**
+### Google Gemini API
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+AccuPlanner uses Google Gemini API for AI-powered learning path generation. To set it up:
 
-## What technologies are used for this project?
+1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Create a new API key
+3. Set it as a Supabase secret:
+   ```sh
+   npx supabase secrets set GEMINI_API_KEY=AIzaSy...your_key_here
+   ```
 
-This project is built with:
+**Important**: The API key must be a valid Google Gemini API key starting with `AIzaSy`.
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Supabase Configuration
 
-## How can I deploy this project?
+1. Create a new project at [Supabase](https://supabase.com)
+2. Get your project URL and anon key from Project Settings > API
+3. Add them to your `.env` file:
+   ```
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_anon_key
+   ```
 
-Simply open [Lovable](https://lovable.dev/projects/484c5b34-c359-4e9e-9984-3ccf064d6225) and click on Share -> Publish.
+## 🏗️ Architecture
 
-## Can I connect a custom domain to my Lovable project?
+### Tech Stack
 
-Yes, you can!
+- **Frontend**: React 18, TypeScript, Vite
+- **UI Framework**: Tailwind CSS, shadcn/ui components
+- **Backend**: Supabase (PostgreSQL, Edge Functions)
+- **AI**: Google Gemini API (v1beta)
+- **Authentication**: Supabase Auth
+- **Deployment**: Lovable (Frontend), Supabase (Backend)
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+### Edge Functions
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+- `generate-study-plan-v2`: AI-powered study plan generation with dynamic model discovery
+- `create-goal`: Create and save learning goals
+- `get-goals`: Retrieve user's learning goals
+- `update-goal-progress`: Track lesson completion progress
+
+## 📁 Project Structure
+
+```
+AccuPlanner/
+├── src/
+│   ├── components/        # React components
+│   │   ├── ui/           # shadcn/ui components
+│   │   ├── AuthForm.tsx
+│   │   └── ProtectedRoute.tsx
+│   ├── contexts/          # React contexts
+│   │   └── AuthContext.tsx
+│   ├── hooks/            # Custom React hooks
+│   ├── integrations/     # External integrations
+│   │   └── supabase/    # Supabase client & types
+│   ├── lib/             # Utility functions
+│   │   ├── api.ts       # API client
+│   │   └── utils.ts     # Helper functions
+│   └── pages/           # Page components
+│       ├── Dashboard.tsx
+│       ├── Index.tsx
+│       ├── LearningPath.tsx
+│       ├── Login.tsx
+│       ├── NotFound.tsx
+│       └── Onboarding.tsx
+├── supabase/
+│   ├── functions/       # Edge Functions
+│   │   ├── generate-study-plan-v2/
+│   │   ├── create-goal/
+│   │   ├── get-goals/
+│   │   └── update-goal-progress/
+│   └── migrations/      # Database migrations
+└── public/              # Static assets
+```
+
+## 🔧 Development
+
+### Available Scripts
+
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
+
+### Deploying Edge Functions
+
+```sh
+# Deploy a specific function
+npx supabase functions deploy generate-study-plan-v2
+
+# Deploy all functions
+npx supabase functions deploy
+```
+
+## 🐛 Troubleshooting
+
+### Gemini API Issues
+
+**Error: "models/gemini-xxx is not found"**
+- The function uses dynamic model discovery, so this should be rare
+- Verify your API key is correct and has proper permissions
+
+**Error: "MAX_TOKENS" or incomplete responses**
+- Already resolved: `maxOutputTokens` is set to 8192
+- If issues persist, check Supabase function logs
+
+**Error: "API Keys are not supported by this API"**
+- Ensure you're using a Google Gemini API key (starts with `AIzaSy`)
+- Not a Lovable or other API key
+
+### Authentication Issues
+
+**Error: "Missing authorization header"**
+- User must be signed in
+- Check that the session token is being passed correctly
+
+### Function Deployment Issues
+
+**Warning: "Functions using fallback import map"**
+- This is a non-critical warning
+- Can be resolved by adding a `deno.json` file to each function directory
+
+## 📝 Recent Updates (v2.2.0)
+
+- ✅ Migrated from Lovable API to Google Gemini API
+- ✅ Implemented dynamic model discovery
+- ✅ Increased token limit to 8192 for complete responses
+- ✅ Enhanced JSON parsing for markdown-wrapped responses
+- ✅ Improved error handling and security
+- ✅ Cleaned up codebase and removed debug logging
+
+See [CHANGELOG.md](./CHANGELOG.md) for complete version history.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is open source and available under the MIT License.
+
+## 👥 Project Partner
+
+- Siddhesh - [GitHub](https://github.com/Siddhesh-00)
+
+## 🙏 Acknowledgments
+
+- [Supabase](https://supabase.com) for the backend infrastructure
+- [Google Gemini](https://ai.google.dev/) for AI capabilities
+- [shadcn/ui](https://ui.shadcn.com/) for beautiful UI components
+- [Lovable](https://lovable.dev) for deployment platform
+```

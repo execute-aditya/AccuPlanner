@@ -2,6 +2,68 @@
 
 All notable changes to AccuPlanner will be documented in this file.
 
+## [Version 2.2.0] - 2025-10-22
+
+### 🚀 Major Changes
+
+#### Migration to Google Gemini API
+- **Complete API Migration**: Migrated from Lovable API to Google Gemini Generative Language API (v1beta)
+- **Dynamic Model Discovery**: Implemented intelligent model discovery system that queries available Gemini models at runtime
+- **Enhanced Reliability**: Added fallback model selection with preference for `gemini-1.5-flash` and `gemini-pro` models
+- **Increased Token Limit**: Raised `maxOutputTokens` from 2048 to 8192 tokens to prevent response truncation
+
+#### New Edge Function
+- **Created generate-study-plan-v2**: Built new edge function from scratch with improved architecture
+- **Authentication Re-enabled**: Properly secured endpoint with JWT token verification
+- **Better Error Handling**: Enhanced error messages and validation throughout the function
+- **Removed Legacy Function**: Deleted corrupted `generate-study-plan` function in favor of v2
+
+### 🔧 Technical Improvements
+
+#### JSON Parsing Enhancement
+- **Markdown Code Block Support**: Added robust extraction of JSON from markdown-wrapped responses (` ```json ... ``` `)
+- **Improved Pattern Matching**: Enhanced regex patterns to handle various JSON response formats
+- **Error Recovery**: Better error messages when JSON parsing fails with content previews
+
+#### API Integration
+- **Model Discovery Endpoint**: Integrated `/v1beta/models` endpoint for real-time model availability checking
+- **Generation Config**: Optimized generation parameters (temperature: 0.7, topK: 40, topP: 0.95)
+- **CORS Headers**: Properly configured CORS for cross-origin requests
+
+#### Code Quality
+- **Removed Debug Logging**: Cleaned up all console.log statements for production readiness
+- **Simplified Error Handling**: Streamlined error handling logic without unnecessary complexity
+- **Type Safety**: Maintained strong TypeScript typing throughout (Resource, Step, Plan types)
+- **Reduced Bundle Size**: Optimized code from 24.75kB to 23.82kB
+
+### 🐛 Bug Fixes
+
+#### Resolved Issues
+- **Fixed "models/gemini-1.5-flash-latest is not found"**: Implemented dynamic model discovery instead of hardcoded names
+- **Fixed MAX_TOKENS Error**: Increased token limit to prevent incomplete JSON responses
+- **Fixed JSON Parsing Errors**: Properly handles Gemini's markdown code block format
+- **Fixed Authentication Issues**: Corrected auth header validation and token passing
+
+#### Response Handling
+- **Fixed "Expected ',' or ']' after array element"**: Resolved by increasing output token limit
+- **Fixed "Unexpected token '\`'"**: Added proper markdown code block extraction
+- **Fixed Empty Response Errors**: Added validation for response structure before parsing
+
+### 🔐 Security Improvements
+- **Environment Variables**: Properly configured `GEMINI_API_KEY` as Supabase secret
+- **Token Verification**: Re-enabled JWT authentication after testing phase
+- **Secure API Calls**: All Gemini API calls use secure HTTPS with API key authentication
+
+### 📚 Documentation
+- **Updated API Endpoints**: Frontend now calls `/functions/v1/generate-study-plan-v2`
+- **Better Error Messages**: User-friendly error messages for various failure scenarios
+- **Deployment Instructions**: Clear separation between testing (--no-verify-jwt) and production deployments
+
+### 🗑️ Cleanup
+- **Removed Corrupted Files**: Deleted old `generate-study-plan/index.ts` with syntax errors
+- **Removed Debug Code**: Cleaned up temporary logging and debug statements
+- **Simplified Codebase**: Removed redundant error handling and validation code
+
 ## [Version 2.1.0] - 2025-10-21
 
 ### Fixes & Improvements

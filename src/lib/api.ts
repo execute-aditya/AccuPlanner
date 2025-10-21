@@ -27,24 +27,40 @@ export const generateStudyPlan = async (
   goalDescription: string,
   onChunk: (text: string) => void
 ): Promise<StudyPlan> => {
-  const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-study-plan`;
+  const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-study-plan-v2`;
+
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('Not authenticated');
+  }
 
   const response = await fetch(CHAT_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({ goalTitle, goalDescription }),
   });
 
   if (!response.ok) {
+    let detail = '';
+    try {
+      const err = await response.json();
+      detail = err?.error || err?.message || '';
+    } catch (_) {
+      // ignore parse error
+    }
     if (response.status === 429) {
       throw new Error('Rate limit exceeded. Please try again in a moment.');
     }
     if (response.status === 402) {
       throw new Error('AI credits exhausted. Please contact support.');
     }
-    throw new Error('Failed to generate study plan');
+    if (response.status === 401) {
+      throw new Error('Not authorized. Please sign in again.');
+    }
+    throw new Error(detail || 'Failed to generate study plan');
   }
 
   const contentType = response.headers.get('content-type') || '';

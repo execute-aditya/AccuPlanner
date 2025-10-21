@@ -30,41 +30,51 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('active');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadGoals();
-  }, []);
+  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
 
-  const loadGoals = async () => {
-    try {
-      setIsLoading(true);
-      const data = await getGoals();
-      setGoals(data || []);
-    } catch (error) {
-      console.error('Error loading goals:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load goals",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  // First useEffect - Load goals on mount
+  useEffect(() => {
+    const loadGoals = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getGoals();
+        setGoals(data || []);
+      } catch (error) {
+        console.error('Error loading goals:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load goals",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadGoals();
+  }, [toast]);
+
+  // Second useEffect - Handle navigation when no goals
+  useEffect(() => {
+    if (!isLoading && goals.length === 0) {
+      navigate('/onboarding');
     }
-  };
+  }, [goals.length, isLoading, navigate]);
 
   const handleSignOut = async () => {
     await signOut();
     navigate('/login');
   };
 
-  const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+  // Derived state calculations
   const totalGoals = goals.length;
   const completedGoals = goals.filter(g => g.progress === 100).length;
   const inProgressGoals = goals.filter(g => g.progress > 0 && g.progress < 100).length;
   const totalHoursSpent = goals.reduce((sum, g) => sum + (g.hours_spent || 0), 0);
-
   const activeGoals = goals.filter(g => g.progress < 100);
   const completedGoalsList = goals.filter(g => g.progress === 100);
 
+  // Early return for loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -76,8 +86,8 @@ export default function Dashboard() {
     );
   }
 
-  if (goals.length === 0) {
-    navigate('/onboarding');
+  // Early return for empty state
+  if (!isLoading && goals.length === 0) {
     return null;
   }
 
