@@ -1,0 +1,110 @@
+AccuPlanner — Project Report
+============================
+
+1. Title and Abstract
+---------------------
+Title: AccuPlanner — AI-Powered Learning Path Generator
+
+Abstract:
+AccuPlanner is a web application that generates personalized learning plans using a generative AI model (Google Gemini) and stores plans and progress in a Supabase backend. The frontend is built with React + TypeScript and uses Supabase Auth for user sign-in. The backend uses Supabase Edge Functions to call the Gemini API, validate/parse the AI output, and store validated plans. The project focuses on trustworthy content (verified YouTube links), secure key handling, and robust AI response parsing.
+
+2. Project Objectives
+---------------------
+- Provide users with AI-generated, step-by-step learning plans for goals (e.g., "learn React").
+- Prioritize free, high-quality YouTube resources and validate they are publicly available.
+- Store plans and progress for authenticated users using Supabase (Postgres + RLS).
+- Make the AI integration robust (dynamic model selection, token limits, markdown JSON extraction).
+- Keep secrets out of the repository and use Supabase secrets for production-sensitive keys.
+
+3. Tech Stack
+-------------
+- Frontend: React 18, TypeScript, Vite
+- Styling / UI: Tailwind CSS, shadcn/ui components
+- Backend: Supabase (Edge Functions, PostgreSQL)
+- AI: Google Gemini Generative Language API (v1beta)
+- Deployment: Supabase Edge Functions; Frontend local dev via Vite
+- Runtime: Deno for Edge Functions (supabase functions)
+
+4. Repository & Important Files
+-------------------------------
+- Frontend entry: src/main.tsx, pages in src/pages/
+- Frontend API client: src/lib/api.ts
+- Edge functions: supabase/functions/
+  - generate-study-plan-v2/index.ts (AI integration, model discovery, JSON extraction)
+  - create-goal/index.ts, get-goals/index.ts, update-goal-progress/index.ts
+- DB migrations: supabase/migrations/20251020194620_049cfd69-cf96-48cf-9534-da642d83ff2e.sql
+- Configs: supabase/functions/deno.json, supabase/functions/import_map.json
+- Docs: README.md, CHANGELOG.md, SETUP_GUIDE.txt
+
+5. Database Schema (summary)
+----------------------------
+Tables:
+- public.profiles: id (UUID), name, email, created_at, updated_at (RLS + policies)
+- public.learning_goals: id, user_id, title, description, category, difficulty (1-3), progress, hours_spent, timestamps (RLS + policies)
+- public.lessons: id, goal_id, title, description, duration_minutes, completed, order_index, resources (JSONB), created_at (RLS + policies)
+- public.study_plans: id, user_id, goal_title, plan_data (JSONB), created_at (RLS + policies)
+
+Triggers & Functions:
+- public.update_updated_at_column(): trigger to set updated_at on updates
+- public.handle_new_user(): creates profile row when a new auth.user is inserted
+
+6. AI Integration & Key Implementation Details
+---------------------------------------------
+- generate-study-plan-v2:
+  - Discovers available Gemini models via /v1beta/models and selects a generative model.
+  - Calls :generateContent endpoint with generationConfig { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 8192 }.
+  - Extracts JSON from markdown code blocks with regex and falls back to object matching.
+  - Validates plan structure and verifies YouTube links using oEmbed before returning.
+
+- Frontend (src/lib/api.ts):
+  - Uses supabase.auth.getSession() and sends user's JWT to Edge Functions.
+  - Handles SSE streaming responses and non-streaming JSON.
+
+7. Deployment & Dev Workflow
+---------------------------
+Local dev:
+- npm install
+- Create .env with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+- npm run dev
+
+Supabase (npx recommended):
+- npx supabase login
+- npx supabase link --project-ref YOUR_PROJECT_ID
+- npx supabase secrets set GEMINI_API_KEY=your_key
+- npx supabase functions deploy generate-study-plan-v2
+
+8. Security & Secrets Handling
+-----------------------------
+- DO NOT commit service_role keys or Gemini API keys to git.
+- Use Supabase secrets for server-side keys (npx supabase secrets set ...).
+- If keys leaked, rotate them immediately in Google Cloud Console (for Gemini) and Supabase dashboard (for service_role).
+- Database uses Row-Level Security (RLS) to enforce per-user data access.
+
+9. Testing & Validation
+-----------------------
+- Fixed MAX_TOKENS truncation by increasing maxOutputTokens to 8192.
+- Resolved JSON parsing errors by extracting content from markdown code fences.
+- Verified YouTube links via oEmbed (with 8-second timeout and AbortController).
+- End-to-end manual test: created a "learn react" goal and confirmed frontend displayed a valid plan.
+
+10. Known Limitations & Future Work
+----------------------------------
+- Monitor Gemini API usage and billing for production usage.
+- Add unit/integration tests for Edge Functions and API logic.
+- Implement CI/CD for automated deployments and tests.
+- Consider caching YouTube metadata and rate-limiting calls.
+- Improve retry/backoff strategies for network calls.
+
+11. Conclusion
+--------------
+AccuPlanner demonstrates a practical integration of modern AI APIs with serverless backends to produce validated, user-specific learning plans. Security, robustness, and user experience guided the implementation choices.
+
+12. References & Files to Include
+--------------------------------
+- supabase/migrations/20251020194620_049cfd69-cf96-48cf-9534-da642d83ff2e.sql
+- supabase/functions/generate-study-plan-v2/index.ts
+- src/lib/api.ts
+- README.md, CHANGELOG.md, SETUP_GUIDE.txt
+
+
+End of report

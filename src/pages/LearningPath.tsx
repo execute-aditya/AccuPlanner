@@ -140,7 +140,7 @@ export default function LearningPath() {
                         <Circle className="w-6 h-6 text-gray-400" />
                       )}
                       <CardTitle className="text-xl">
-                        Step {lesson.order_index + 1}: {lesson.title}
+                        {lesson.title}
                       </CardTitle>
                     </div>
                     <CardDescription className="ml-9">{lesson.description}</CardDescription>
@@ -185,7 +185,7 @@ export default function LearningPath() {
               ) : (
                 <Circle className="w-6 h-6 text-gray-400" />
               )}
-              Step {selectedLesson?.order_index + 1}: {selectedLesson?.title}
+              {selectedLesson?.title}
             </DialogTitle>
             <DialogDescription className="text-base mt-4">
               {selectedLesson?.description}

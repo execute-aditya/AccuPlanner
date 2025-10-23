@@ -52,7 +52,7 @@ serve(async (req) => {
     // Calculate and update goal progress
     const { data: lessons, error: lessonsError } = await supabase
       .from('lessons')
-      .select('completed')
+      .select('completed, duration_minutes')
       .eq('goal_id', goalId);
 
     if (lessonsError) {
@@ -63,10 +63,16 @@ serve(async (req) => {
     const totalLessons = lessons.length;
     const completedLessons = lessons.filter(l => l.completed).length;
     const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+    
+    // Calculate total hours spent from completed lessons
+    const totalMinutes = lessons
+      .filter(l => l.completed)
+      .reduce((sum, l) => sum + (l.duration_minutes || 0), 0);
+    const hours_spent = Math.round((totalMinutes / 60) * 100) / 100; // Round to 2 decimal places
 
     const { error: goalError } = await supabase
       .from('learning_goals')
-      .update({ progress })
+      .update({ progress, hours_spent })
       .eq('id', goalId)
       .eq('user_id', user.id);
 

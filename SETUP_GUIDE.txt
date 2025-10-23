@@ -1,0 +1,338 @@
+================================================================================
+                    ACCUPLANNER SETUP GUIDE - NEW DEVICE
+================================================================================
+
+Project: AccuPlanner
+Repository: https://github.com/execute-aditya/AccuPlanner.git
+Supabase Project ID: your_project_id_here
+Gemini API Key: your_gemini_api_key_here
+
+================================================================================
+                              PREREQUISITES
+================================================================================
+
+1. Node.js & npm
+   Download from: https://nodejs.org/
+   
+   Verify installation:
+   node --version
+   npm --version
+
+2. Git
+   Download from: https://git-scm.com/downloads
+
+================================================================================
+                         STEP-BY-STEP SETUP
+================================================================================
+
+STEP 1: Install Supabase CLI
+-----------------------------
+npm install -g supabase
+
+Verify:
+supabase --version
+
+
+STEP 2: Login to Supabase
+--------------------------
+supabase login
+
+This will open a browser window. Sign in with your Supabase account.
+
+Alternative (if browser doesn't open):
+supabase login --token your_access_token
+
+
+STEP 3: Clone Repository
+-------------------------
+git clone https://github.com/execute-aditya/AccuPlanner.git
+cd AccuPlanner
+
+
+STEP 4: Install Dependencies
+-----------------------------
+npm install
+
+
+STEP 5: Create .env File
+-------------------------
+Create a file named .env in the root directory with these contents:
+
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+To get these values:
+1. Go to https://supabase.com/dashboard
+2. Select project: tpduuwrufruopkrdpkky
+3. Go to Settings > API
+4. Copy:
+   - Project URL → VITE_SUPABASE_URL
+   - anon/public key → VITE_SUPABASE_ANON_KEY
+
+
+STEP 6: Link to Supabase Project
+---------------------------------
+supabase link --project-ref YOUR_PROJECT_ID
+
+
+STEP 7: Run Database Migrations (if needed)
+--------------------------------------------
+supabase db push
+
+
+STEP 8: Set Gemini API Key
+---------------------------
+supabase secrets set GEMINI_API_KEY=your_gemini_api_key_here
+
+
+STEP 9: Deploy Edge Functions
+------------------------------
+supabase functions deploy generate-study-plan-v2
+supabase functions deploy create-goal
+supabase functions deploy get-goals
+supabase functions deploy update-goal-progress
+
+Or deploy all at once:
+supabase functions deploy
+
+
+STEP 10: Start Development Server
+----------------------------------
+npm run dev
+
+The app will be available at http://localhost:8080
+
+
+================================================================================
+                           IMPORTANT CREDENTIALS
+================================================================================
+
+Supabase Project ID: your_project_id_here
+Gemini API Key: your_gemini_api_key_here
+Repository: https://github.com/execute-aditya/AccuPlanner.git
+
+Get Supabase URL and Anon Key from:
+https://supabase.com/dashboard/project/YOUR_PROJECT_ID/settings/api
+
+
+================================================================================
+                           USEFUL COMMANDS
+================================================================================
+
+# Login to Supabase
+supabase login
+
+# Link project
+supabase link --project-ref YOUR_PROJECT_ID
+
+# Check project status
+supabase status
+
+# List projects
+supabase projects list
+
+# Set secrets
+supabase secrets set GEMINI_API_KEY=your_key
+
+# List secrets
+supabase secrets list
+
+# Deploy specific function
+supabase functions deploy generate-study-plan-v2
+
+# Deploy all functions
+supabase functions deploy
+
+# View function logs
+supabase functions logs generate-study-plan-v2
+
+# View real-time logs
+supabase functions logs generate-study-plan-v2 --follow
+
+# Start dev server
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+
+# Run linter
+npm run lint
+
+
+================================================================================
+                            DATABASE SCHEMA
+================================================================================
+
+Tables:
+1. profiles - User profile information
+2. learning_goals - User learning goals
+3. lessons - Lessons for each goal
+4. study_plans - AI-generated study plans
+
+The migration file will create all tables automatically.
+
+
+================================================================================
+                            TROUBLESHOOTING
+================================================================================
+
+Problem: supabase login fails
+Solution: Use access token from Supabase dashboard
+supabase login --token your_access_token
+
+
+Problem: Port 8080 is in use
+Solution: Vite will automatically use next available port (8081, 8082, etc.)
+
+
+Problem: Functions fail to deploy
+Solution: Check you're linked to correct project
+supabase projects list
+supabase link --project-ref YOUR_PROJECT_ID
+
+
+Problem: "Missing authorization header" error
+Solution: Make sure user is signed in through the app
+
+
+Problem: Gemini API errors
+Solution: 
+- Verify API key is correct (starts with AIzaSy)
+- Check Supabase function logs: supabase functions logs generate-study-plan-v2
+
+
+Problem: Database tables don't exist
+Solution: Run migrations
+supabase db push
+
+
+Problem: .env file not working
+Solution: 
+- Make sure .env is in the root directory (not in src/)
+- Restart dev server after changing .env
+- Variable names must start with VITE_ to be accessible in frontend
+
+
+================================================================================
+                          PROJECT STRUCTURE
+================================================================================
+
+AccuPlanner/
+├── src/
+│   ├── components/        # React components
+│   │   ├── ui/           # shadcn/ui components
+│   │   ├── AuthForm.tsx
+│   │   └── ProtectedRoute.tsx
+│   ├── contexts/          # React contexts
+│   │   └── AuthContext.tsx
+│   ├── hooks/            # Custom React hooks
+│   ├── integrations/     # External integrations
+│   │   └── supabase/    # Supabase client & types
+│   ├── lib/             # Utility functions
+│   │   ├── api.ts       # API client
+│   │   └── utils.ts     # Helper functions
+│   └── pages/           # Page components
+│       ├── Dashboard.tsx
+│       ├── Index.tsx
+│       ├── LearningPath.tsx
+│       ├── Login.tsx
+│       ├── NotFound.tsx
+│       └── Onboarding.tsx
+├── supabase/
+│   ├── functions/       # Edge Functions
+│   │   ├── generate-study-plan-v2/
+│   │   ├── create-goal/
+│   │   ├── get-goals/
+│   │   └── update-goal-progress/
+│   └── migrations/      # Database migrations
+├── public/              # Static assets
+├── .env                 # Environment variables (DO NOT COMMIT)
+├── package.json         # Dependencies
+├── README.md           # Project documentation
+└── CHANGELOG.md        # Version history
+
+
+================================================================================
+                            EDGE FUNCTIONS
+================================================================================
+
+1. generate-study-plan-v2
+   Purpose: Generate AI-powered study plans using Google Gemini
+   Features:
+   - Dynamic model discovery
+   - 8192 token limit
+   - Markdown JSON parsing
+   - YouTube video validation
+
+2. create-goal
+   Purpose: Create and save learning goals
+
+3. get-goals
+   Purpose: Retrieve user's learning goals
+
+4. update-goal-progress
+   Purpose: Track lesson completion progress
+
+
+================================================================================
+                         ENVIRONMENT VARIABLES
+================================================================================
+
+Required in .env file:
+VITE_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+VITE_SUPABASE_ANON_KEY=your_anon_key_here
+
+Required as Supabase Secret:
+GEMINI_API_KEY=your_gemini_api_key_here
+
+
+================================================================================
+                              NOTES
+================================================================================
+
+1. Never commit .env file to git (it's in .gitignore)
+2. Gemini API key must start with "AIzaSy"
+3. Database migrations run automatically when you push
+4. Edge functions are deployed to Supabase servers
+5. Frontend runs on localhost:8080 (or next available port)
+6. All API calls go through Supabase Edge Functions
+7. Authentication is handled by Supabase Auth
+8. The app uses Row Level Security (RLS) for data protection
+
+
+================================================================================
+                         VERSION INFORMATION
+================================================================================
+
+Current Version: 2.2.0
+Last Updated: October 22, 2025
+
+Major Changes in v2.2.0:
+- Migrated from Lovable API to Google Gemini API
+- Implemented dynamic model discovery
+- Increased token limit from 2048 to 8192
+- Enhanced JSON parsing for markdown responses
+- Improved error handling and security
+- Cleaned up codebase
+
+See CHANGELOG.md for complete version history.
+
+
+================================================================================
+                              SUPPORT
+================================================================================
+
+Repository Issues: https://github.com/execute-aditya/AccuPlanner/issues
+Documentation: README.md
+Changelog: CHANGELOG.md
+
+For Supabase issues: https://supabase.com/docs
+For Gemini API issues: https://ai.google.dev/docs
+
+
+================================================================================
+                           END OF SETUP GUIDE
+================================================================================
