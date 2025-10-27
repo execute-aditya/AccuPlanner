@@ -22,6 +22,19 @@ export default function AuthForm() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  const validateName = (name: string) => {
+    // Check if name contains any numbers
+    return !/\d/.test(name);
+  };
+
+  const validatePassword = (password: string) => {
+    // Must contain at least one letter, one number, and one symbol
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSymbol = /[!@#$%^&*(),.?":{}|<>_\-+=[\]\\\/;'`~]/.test(password);
+    return hasLetter && hasNumber && hasSymbol;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -56,13 +69,23 @@ export default function AuthForm() {
         return;
       }
 
+      if (!validateName(name)) {
+        setError('Full name cannot contain numbers');
+        return;
+      }
+
       if (!validateEmail(email)) {
         setError('Please enter a valid email address');
         return;
       }
 
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters');
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters');
+        return;
+      }
+
+      if (!validatePassword(password)) {
+        setError('Password must contain letters, numbers, and symbols');
         return;
       }
 
@@ -157,6 +180,11 @@ export default function AuthForm() {
                 disabled={isLoading}
                 className="mt-1"
               />
+              {!isLogin && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Must be 8+ characters with letters, numbers, and symbols
+                </p>
+              )}
             </div>
 
             {!isLogin && (

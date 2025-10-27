@@ -122,23 +122,54 @@ Guidelines:
       );
     }
     
-    const aiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/${generativeModel.name}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [ { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] } ],
-        generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 8192 },
-      }),
-    });
+    // Retry logic for handling overloaded/rate limit errors
+    const maxRetries = 3;
+    let aiResp: Response | null = null;
+    let lastError = '';
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff: 2s, 4s, 8s
+        const delay = Math.pow(2, attempt) * 1000;
+        console.log(`Retry attempt ${attempt} after ${delay}ms delay`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+      
+      aiResp = await fetch(`https://generativelanguage.googleapis.com/v1beta/${generativeModel.name}:generateContent?key=${GEMINI_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [ { role: 'user', parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }] } ],
+          generationConfig: { temperature: 0.7, topK: 40, topP: 0.95, maxOutputTokens: 8192 },
+        }),
+      });
 
-    if (!aiResp.ok) {
-      let msg = `Gemini API error (${aiResp.status})`;
+      if (aiResp.ok) {
+        break; // Success, exit retry loop
+      }
+
+      // Check if error is retryable (429, 503, 500)
       try { 
         const e = await aiResp.json(); 
-        msg = e?.error?.message || e?.message || msg; 
-      } catch (_) { /* ignore parse error */ }
-      const status = [429,402,400,401].includes(aiResp.status) ? aiResp.status : 502;
-      return new Response(JSON.stringify({ error: msg }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        lastError = e?.error?.message || e?.message || `Gemini API error (${aiResp.status})`;
+        
+        // Retry on rate limit (429), server errors (500, 503), or "overloaded" message
+        const isRetryable = aiResp.status === 429 || 
+                           aiResp.status === 503 || 
+                           aiResp.status === 500 ||
+                           lastError.toLowerCase().includes('overloaded');
+        
+        if (!isRetryable || attempt === maxRetries - 1) {
+          const status = [429,402,400,401].includes(aiResp.status) ? aiResp.status : 502;
+          return new Response(JSON.stringify({ error: lastError }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+      } catch (_) { 
+        lastError = `Gemini API error (${aiResp.status})`;
+      }
+    }
+
+    if (!aiResp || !aiResp.ok) {
+      return new Response(JSON.stringify({ error: lastError || 'Failed after retries' }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const geminiData = await aiResp.json();
