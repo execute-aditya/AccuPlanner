@@ -30,6 +30,40 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fallback generator to guarantee a response during demos if the AI is overloaded
+function buildFallbackPlan(goalTitle: string, goalDescription?: string): Plan {
+  const safeTitle = goalTitle.length > 60 ? goalTitle.slice(0, 57) + '...' : goalTitle;
+  const makeStep = (i: number, title: string, minutes: number): Step => ({
+    id: `fallback-${i}`,
+    title: `Step ${i}: ${title}`,
+    description: `Work through this step using curated search results and reputable free resources. Focus on understanding and note-taking. ${goalDescription ? 'Context: ' + goalDescription : ''}`,
+    durationMinutes: minutes,
+    // Use article/exercise types to avoid video validation HTTP checks
+    resources: [
+      { type: 'article', title: `${title} — Overview`, url: `https://www.google.com/search?q=${encodeURIComponent(title)}` },
+      { type: 'article', title: `${title} — Beginner friendly`, url: `https://duckduckgo.com/?q=${encodeURIComponent(title + ' beginner')}` },
+      { type: 'exercise', title: `${title} — Practice tasks`, url: `https://www.google.com/search?q=${encodeURIComponent(title + ' exercises')}` },
+    ],
+  });
+
+  const base = safeTitle.replace(/^(Learn|Master|Study)\s+/i, '').trim();
+  const steps = [
+    makeStep(1, `${base} fundamentals`, 45),
+    makeStep(2, `Core concepts of ${base}`, 60),
+    makeStep(3, `${base} applied examples`, 60),
+    makeStep(4, `Projects with ${base}`, 75),
+    makeStep(5, `Review and next steps`, 30),
+  ];
+
+  return {
+    title: `${base} Learning Path (Fallback)`,
+    category: 'Self-paced',
+    difficulty: 1,
+    summary: `Fallback learning path generated locally to ensure a smooth demo when the AI service is busy. You can still follow these steps and links while the model recovers.`,
+    steps,
+  };
+}
+
 serve(async (req): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -107,11 +141,21 @@ Guidelines:
     const modelsData = await modelsResp.json();
     const availableModels = modelsData.models || [];
     
-    // Find a generative model (prefer gemini-1.5-flash or gemini-pro)
-    const generativeModel = availableModels.find((m: { name: string; supportedGenerationMethods?: string[] }) => 
-      m.supportedGenerationMethods?.includes('generateContent') && 
-      (m.name.includes('gemini-1.5-flash') || m.name.includes('gemini-pro'))
-    ) || availableModels.find((m: { supportedGenerationMethods?: string[] }) => 
+    // Prefer lighter/less busy models first to avoid overload during demos
+    const preferredOrder = [
+      'gemini-1.5-flash-8b',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-pro',
+      'gemini-1.0-pro',
+    ];
+
+    const byPreference = availableModels.find((m: { name: string; supportedGenerationMethods?: string[] }) =>
+      m.supportedGenerationMethods?.includes('generateContent') && preferredOrder.some(p => m.name.includes(p))
+    );
+
+    // Fallback to any model that supports generateContent
+    const generativeModel = byPreference || availableModels.find((m: { supportedGenerationMethods?: string[] }) => 
       m.supportedGenerationMethods?.includes('generateContent')
     );
     
@@ -123,14 +167,15 @@ Guidelines:
     }
     
     // Retry logic for handling overloaded/rate limit errors
-    const maxRetries = 3;
+    const maxRetries = 5;
     let aiResp: Response | null = null;
     let lastError = '';
     
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       if (attempt > 0) {
-        // Exponential backoff: 2s, 4s, 8s
-        const delay = Math.pow(2, attempt) * 1000;
+        // Exponential backoff with jitter: 2s, 4s, 8s, 16s, 32s (+0-300ms)
+        const jitter = Math.floor(Math.random() * 300);
+        const delay = Math.pow(2, attempt) * 1000 + jitter;
         console.log(`Retry attempt ${attempt} after ${delay}ms delay`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
@@ -161,7 +206,9 @@ Guidelines:
         
         if (!isRetryable || attempt === maxRetries - 1) {
           const status = [429,402,400,401].includes(aiResp.status) ? aiResp.status : 502;
-          return new Response(JSON.stringify({ error: lastError }), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          // If we've exhausted retries or error is not retryable, return a graceful fallback plan instead of erroring out
+          const fallback = buildFallbackPlan(goalTitle, goalDescription);
+          return new Response(JSON.stringify(fallback), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
         }
       } catch (_) { 
         lastError = `Gemini API error (${aiResp.status})`;
@@ -169,7 +216,9 @@ Guidelines:
     }
 
     if (!aiResp || !aiResp.ok) {
-      return new Response(JSON.stringify({ error: lastError || 'Failed after retries' }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Final guard: still produce a plan for the demo
+      const fallback = buildFallbackPlan(goalTitle, goalDescription);
+      return new Response(JSON.stringify(fallback), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const geminiData = await aiResp.json();
@@ -221,35 +270,88 @@ Guidelines:
     }
     const plan: Plan = parsed as Plan;
 
-    // Validate YouTube links
-    const isYouTubeVideoPublic = async (url: string): Promise<boolean> => {
+    // Advanced resource validation - check if URLs are actually accessible
+    const validateResourceUrl = async (url: string | undefined, type: string): Promise<boolean> => {
       if (!url) return false;
-      const isYT = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(url);
-      if (!isYT) return false;
-      const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      
       try {
-        const resp = await fetch(oembed, { signal: controller.signal });
-        clearTimeout(timeout);
-        return resp.ok;
-      } catch (_) {
-        clearTimeout(timeout);
+        // YouTube validation
+        if (type === 'video' || /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(url)) {
+          const oembed = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          try {
+            const resp = await fetch(oembed, { signal: controller.signal });
+            clearTimeout(timeout);
+            return resp.ok;
+          } catch (_) {
+            clearTimeout(timeout);
+            return false;
+          }
+        }
+        
+        // For articles, courses, books - do HEAD request to check if URL exists
+        if (type === 'article' || type === 'course' || type === 'book') {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          try {
+            const resp = await fetch(url, { 
+              method: 'HEAD', 
+              signal: controller.signal,
+              redirect: 'follow'
+            });
+            clearTimeout(timeout);
+            // Accept 2xx and 3xx responses as valid
+            return resp.ok || (resp.status >= 300 && resp.status < 400);
+          } catch (_) {
+            clearTimeout(timeout);
+            // If HEAD fails, try GET with range to minimize data transfer
+            try {
+              const resp = await fetch(url, {
+                method: 'GET',
+                headers: { 'Range': 'bytes=0-0' },
+                signal: controller.signal,
+                redirect: 'follow'
+              });
+              clearTimeout(timeout);
+              return resp.ok || resp.status === 206 || (resp.status >= 300 && resp.status < 400);
+            } catch {
+              clearTimeout(timeout);
+              return false;
+            }
+          }
+        }
+        
+        // For exercise type or unknown, accept if it looks like a valid URL
+        return /^https?:\/\/.+\..+/.test(url);
+      } catch (error) {
+        console.error(`Error validating URL ${url}:`, error);
         return false;
       }
     };
 
+    // Validate all resources in parallel for each step
     for (const step of plan.steps) {
-      const results = await Promise.all(
-        step.resources.map(async (r: Resource) => {
-          if (r?.type === 'video' && r?.url) {
-            const ok = await isYouTubeVideoPublic(r.url);
-            return ok ? r : null;
-          }
-          return r;
-        })
-      );
+      const validationPromises = step.resources.map(async (r: Resource) => {
+        if (!r?.url) return r; // Keep resources without URLs (might be books, etc.)
+        
+        const isValid = await validateResourceUrl(r.url, r.type);
+        return isValid ? r : null;
+      });
+      
+      const results = await Promise.all(validationPromises);
       step.resources = results.filter(Boolean) as Resource[];
+      
+      // Ensure at least 1 resource per step, add a search link if all were filtered
+      if (step.resources.length === 0) {
+        step.resources.push({
+          type: 'article',
+          title: `${step.title} - Curated Resources`,
+          url: `https://www.google.com/search?q=${encodeURIComponent(step.title)}`,
+          source: 'Google Search',
+          isPaid: false
+        });
+      }
     }
 
     return new Response(JSON.stringify(plan), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Target, Sparkles } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Loader2, Target, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { generateStudyPlan, createGoal } from '@/lib/api';
+import { generateStudyPlan, createGoal, getGoals } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+
+type ProgressStage = 'idle' | 'analyzing' | 'searching' | 'building' | 'validating' | 'complete';
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -18,9 +21,37 @@ export default function Onboarding() {
   const [goalDescription, setGoalDescription] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [streamedText, setStreamedText] = useState('');
+  const [progressStage, setProgressStage] = useState<ProgressStage>('idle');
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [hasExistingGoals, setHasExistingGoals] = useState(false);
+  const [isCheckingGoals, setIsCheckingGoals] = useState(true);
 
   const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'User';
+
+  const progressStages: Record<ProgressStage, { label: string; percent: number }> = {
+    idle: { label: '', percent: 0 },
+    analyzing: { label: 'Analyzing your goal...', percent: 20 },
+    searching: { label: 'Finding the best resources...', percent: 50 },
+    building: { label: 'Building your learning path...', percent: 75 },
+    validating: { label: 'Validating resources...', percent: 90 },
+    complete: { label: 'Complete!', percent: 100 },
+  };
+
+  // Check if user has existing goals
+  useEffect(() => {
+    const checkExistingGoals = async () => {
+      try {
+        const goals = await getGoals();
+        setHasExistingGoals(goals && goals.length > 0);
+      } catch (error) {
+        console.error('Error checking goals:', error);
+      } finally {
+        setIsCheckingGoals(false);
+      }
+    };
+
+    checkExistingGoals();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,12 +68,30 @@ export default function Onboarding() {
     }
 
     setIsLoading(true);
-    setStreamedText('');
+    setProgressStage('analyzing');
+    setProgressPercent(20);
     
     try {
-      const studyPlan = await generateStudyPlan(goalTitle, goalDescription, (chunk) => {
-        setStreamedText(prev => prev + chunk);
-      });
+      // Simulate progress stages
+      const stageTimers: NodeJS.Timeout[] = [];
+      
+      stageTimers.push(setTimeout(() => {
+        setProgressStage('searching');
+        setProgressPercent(50);
+      }, 1500));
+      
+      stageTimers.push(setTimeout(() => {
+        setProgressStage('building');
+        setProgressPercent(75);
+      }, 3000));
+      
+      const studyPlan = await generateStudyPlan(goalTitle, goalDescription, () => {});
+      
+      // Clear timers once we have the plan
+      stageTimers.forEach(t => clearTimeout(t));
+      
+      setProgressStage('validating');
+      setProgressPercent(90);
 
       // Use AI-generated title, category, and difficulty from the study plan
       const title = studyPlan.title || goalTitle;
@@ -51,17 +100,26 @@ export default function Onboarding() {
 
       await createGoal(title, goalDescription, category, difficulty, studyPlan);
       
-      toast({
-        title: "Success!",
-        description: "Your learning goal has been created",
-      });
+      setProgressStage('complete');
+      setProgressPercent(100);
       
-      navigate('/');
+      setTimeout(() => {
+        toast({
+          title: "Success!",
+          description: "Your learning goal has been created",
+        });
+        navigate('/');
+      }, 500);
+      
     } catch (error) {
       console.error('Error creating goal:', error);
       setError(error instanceof Error ? error.message : 'Failed to create goal');
+      setProgressStage('idle');
+      setProgressPercent(0);
     } finally {
-      setIsLoading(false);
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 1000);
     }
   };
 
@@ -73,10 +131,22 @@ export default function Onboarding() {
             <Target className="w-8 h-8 text-indigo-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome to AccuPlanner, {userName}!
+            {isCheckingGoals ? (
+              'Loading...'
+            ) : hasExistingGoals ? (
+              `Welcome back, ${userName}!`
+            ) : (
+              `Welcome to AccuPlanner, ${userName}!`
+            )}
           </h1>
           <p className="text-gray-600">
-            Let's create your first learning goal to get started
+            {isCheckingGoals ? (
+              'Checking your goals...'
+            ) : hasExistingGoals ? (
+              'Create another learning goal to expand your knowledge'
+            ) : (
+              "Let's create your first learning goal to get started"
+            )}
           </p>
         </div>
 
@@ -118,14 +188,50 @@ export default function Onboarding() {
               />
             </div>
 
-            {isLoading && streamedText && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-indigo-600 animate-pulse" />
-                  <span className="text-sm font-medium text-indigo-900">AI is generating your learning plan...</span>
+            {isLoading && (
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Sparkles className="w-6 h-6 text-indigo-600 animate-pulse" />
+                  <span className="font-medium text-indigo-900">
+                    {progressStages[progressStage].label}
+                  </span>
                 </div>
-                <div className="text-sm text-gray-700 whitespace-pre-wrap max-h-40 overflow-y-auto">
-                  {streamedText}
+                
+                <div className="space-y-2">
+                  <Progress value={progressPercent} className="h-2" />
+                  <div className="flex items-center justify-between text-sm text-gray-600">
+                    <span>{progressPercent}% Complete</span>
+                    {progressStage === 'complete' && (
+                      <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-2 h-2 rounded-full ${progressPercent >= 20 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className={progressPercent >= 20 ? 'text-gray-700' : 'text-gray-400'}>
+                      Analyzing your goal
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-2 h-2 rounded-full ${progressPercent >= 50 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className={progressPercent >= 50 ? 'text-gray-700' : 'text-gray-400'}>
+                      Finding resources
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-2 h-2 rounded-full ${progressPercent >= 75 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className={progressPercent >= 75 ? 'text-gray-700' : 'text-gray-400'}>
+                      Building learning path
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div className={`w-2 h-2 rounded-full ${progressPercent >= 90 ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    <span className={progressPercent >= 90 ? 'text-gray-700' : 'text-gray-400'}>
+                      Validating resources
+                    </span>
+                  </div>
                 </div>
               </div>
             )}
